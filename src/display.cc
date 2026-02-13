@@ -9,11 +9,17 @@ namespace cramshell {
     int count = 0;
 
     for (const auto& file : std::filesystem::directory_iterator("/sys/class/drm/")) {
-      const auto fp = file.path();
-      const auto root_path = fp.root_path();
-      const auto rela_path = fp.relative_path();
-      const auto path = root_path / rela_path / "status";
-      std::ifstream card(path);
+      bool is_card = file
+        .path()
+        .filename()
+        .string()
+        .starts_with("card");
+
+      if (!is_card) {
+        continue;
+      }
+
+      std::ifstream card((file.path() / "status").string());
 
       if (card.is_open()) {
         std::string status;
@@ -23,6 +29,7 @@ namespace cramshell {
         }
 
         card.close();
+
       }
     }
 
