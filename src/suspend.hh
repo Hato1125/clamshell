@@ -21,6 +21,7 @@ namespace cramshell {
 
   suspend_caps get_suspend_caps() noexcept;
   void suspend(suspend_type type) noexcept;
+  void resume() noexcept;
 }
 
 #endif

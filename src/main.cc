@@ -26,6 +26,7 @@ int main() {
         // Program execution stops here during suspend, preventing multiple
         // suspend requests while the system is already suspended.
         cramshell::suspend(cramshell::suspend_type::freeze);
+        cramshell::resume();
       }
     }
 

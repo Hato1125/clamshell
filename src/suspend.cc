@@ -2,6 +2,8 @@
 #include <sstream>
 #include <string>
 
+#include <unistd.h>
+
 #include "suspend.hh"
 
 namespace cramshell {
@@ -41,8 +43,15 @@ namespace cramshell {
   }
 
   void suspend(suspend_type type) noexcept {
-    std::ofstream state("/sys/power/state");
+    sync();
 
+    std::ofstream nvidia_state("/proc/driver/nvidia/suspend");
+    if (nvidia_state.is_open()) {
+      nvidia_state << "suspend";
+      nvidia_state.close();
+    }
+
+    std::ofstream state("/sys/power/state");
     if (state.is_open()) {
       switch (type) {
         case suspend_type::freeze:
@@ -58,8 +67,15 @@ namespace cramshell {
           state << "disk";
           break;
       }
-
       state.close();
+    }
+  }
+
+  void resume() noexcept {
+    std::ofstream nvidia_state("/proc/driver/nvidia/suspend");
+    if (nvidia_state.is_open()) {
+      nvidia_state << "resume";
+      nvidia_state.close();
     }
   }
 }
