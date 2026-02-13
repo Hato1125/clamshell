@@ -1,3 +1,4 @@
+#include <bit>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -6,76 +7,89 @@
 
 #include "suspend.hh"
 
-namespace cramshell {
-  suspend_caps get_suspend_caps() noexcept {
-    std::ifstream file("/sys/power/state");
+namespace {
+  struct suspend_caps {
+    unsigned char freeze : 1;
+    unsigned char standby : 1;
+    unsigned char mem: 1;
+    unsigned char disk: 1;
+    unsigned char _ : 4;
+  };
 
-    suspend_caps caps {
-      .freeze = 0,
-      .standby = 0,
-      .mem = 0,
-      .disk = 0,
-    };
+  suspend_caps caps {
+    .freeze = 0,
+    .standby = 0,
+    .mem = 0,
+    .disk = 0,
+  };
 
-    if (!file.is_open()) {
-      return caps;
-    }
-
-    std::string state;
-    std::string part;
-    std::getline(file, state);
-    std::istringstream iss(state);
-
-    while (iss >> part) {
-      if (part == "freeze") {
-        caps.freeze = 1;
-      } else if (part == "standby") {
-        caps.standby = 1;
-      } else if (part == "mem") {
-        caps.mem = 1;
-      } else if (part == "disk") {
-        caps.disk = 1;
-      }
-    }
-    file.close();
-
-    return caps;
-  }
-
-  void suspend(suspend_type type) noexcept {
-    sync();
-
-    std::ofstream nvidia_state("/proc/driver/nvidia/suspend");
-    if (nvidia_state.is_open()) {
-      nvidia_state << "suspend";
-      nvidia_state.close();
-    }
-
+  void write_suspend() noexcept {
     std::ofstream state("/sys/power/state");
     if (state.is_open()) {
-      switch (type) {
-        case suspend_type::freeze:
-          state << "freeze";
-          break;
-        case suspend_type::standby:
-          state << "standby";
-          break;
-        case suspend_type::mem:
-          state << "mem";
-          break;
-        case suspend_type::disk:
-          state << "disk";
-          break;
+      if (caps.freeze) {
+        state << "freeze";
+      } else if (caps.standby) {
+        state << "standby";
+      } else if (caps.mem) {
+        state << "mem";
+      } else if (caps.disk) {
+        state << "disk";
       }
       state.close();
     }
   }
 
-  void resume() noexcept {
-    std::ofstream nvidia_state("/proc/driver/nvidia/suspend");
-    if (nvidia_state.is_open()) {
-      nvidia_state << "resume";
-      nvidia_state.close();
+  void write_nvidia_suspend() noexcept {
+    std::ofstream state("/proc/driver/nvidia/suspend");
+    if (state.is_open()) {
+      state << "suspend";
+      state.close();
     }
+  }
+
+  void write_nvidia_resume() noexcept {
+    std::ofstream state("/proc/driver/nvidia/suspend");
+    if (state.is_open()) {
+      state << "resume";
+      state.close();
+    }
+  }
+}
+
+namespace cramshell {
+  bool check_suspend_caps() noexcept {
+    std::ifstream file("/sys/power/state");
+
+    if (file.is_open()) {
+      std::string state;
+      std::string part;
+      std::getline(file, state);
+      std::istringstream iss(state);
+
+      while (iss >> part) {
+        if (part == "freeze") {
+          caps.freeze = 1;
+        } else if (part == "standby") {
+          caps.standby = 1;
+        } else if (part == "mem") {
+          caps.mem = 1;
+        } else if (part == "disk") {
+          caps.disk = 1;
+        }
+      }
+      file.close();
+    }
+
+    return std::bit_cast<unsigned char>(caps) != 0;
+  }
+
+  void suspend() noexcept {
+    sync();
+    write_nvidia_suspend();
+    write_suspend();
+  }
+
+  void resume() noexcept {
+    write_nvidia_resume();
   }
 }

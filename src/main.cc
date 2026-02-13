@@ -1,4 +1,3 @@
-#include <bit>
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -13,9 +12,7 @@ int main() {
     return EXIT_FAILURE;
   }
 
-  const auto suspend_caps = cramshell::get_suspend_caps();
-
-  if (std::bit_cast<unsigned char>(suspend_caps) == 0) {
+  if (!cramshell::check_suspend_caps()) {
     std::cout << "No suspend available for this device.\n";
     return EXIT_FAILURE;
   }
@@ -25,7 +22,7 @@ int main() {
       if (!cramshell::is_open_lid()) {
         // Program execution stops here during suspend, preventing multiple
         // suspend requests while the system is already suspended.
-        cramshell::suspend(cramshell::suspend_type::freeze);
+        cramshell::suspend();
         cramshell::resume();
       }
     }
