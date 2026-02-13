@@ -54,6 +54,19 @@ namespace {
       state.close();
     }
   }
+
+  bool freeze_user_processes() noexcept {
+    std::ofstream file("/sys/fs/cgroup/user.slice/cgroup.freeze");
+    file << "1";
+    return file.good();
+  }
+
+
+  bool unfreeze_user_processes() noexcept {
+    std::ofstream file("/sys/fs/cgroup/user.slice/cgroup.freeze");
+    file << "0";
+    return file.good();
+  }
 }
 
 namespace cramshell {
@@ -85,11 +98,14 @@ namespace cramshell {
 
   void suspend() noexcept {
     sync();
-    write_nvidia_suspend();
-    write_suspend();
+    if (freeze_user_processes()) {
+      write_nvidia_suspend();
+      write_suspend();
+    }
   }
 
   void resume() noexcept {
+    unfreeze_user_processes();
     write_nvidia_resume();
   }
 }
