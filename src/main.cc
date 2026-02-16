@@ -1,6 +1,5 @@
 #include <print>
 #include <thread>
-#include <chrono>
 
 #include "lid.hh"
 #include "suspend.hh"
