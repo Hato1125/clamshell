@@ -1,0 +1,12 @@
+[Unit]
+Description=Clamshell mode suspend daemon
+After=graphical.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/cramshell
+Restart=always
+
+[Install]
+WantedBy=graphical.target

@@ -1,0 +1,12 @@
+#!/sbin/openrc-run
+
+description="Clamshell mode suspend daemon"
+
+command="/usr/bin/cramshell"
+command_background=true
+pidfile="/run/${RC_SVCNAME}.pid"
+
+depend() {
+	need localmount
+	after display-manager
+}
