@@ -5,7 +5,7 @@ After=graphical.target
 [Service]
 Type=simple
 User=root
-ExecStart=/usr/bin/cramshell
+ExecStart=/usr/bin/clamshell
 Restart=always
 
 [Install]

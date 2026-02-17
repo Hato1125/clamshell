@@ -2,11 +2,11 @@
 
 description="Clamshell mode suspend daemon"
 
-command="/usr/bin/cramshell"
+command="/usr/bin/clamshell"
 command_background=true
 pidfile="/run/${RC_SVCNAME}.pid"
 
 depend() {
-	need localmount
-	after display-manager
+  need localmount
+  after display-manager
 }

@@ -1,2 +1,2 @@
 #!/bin/sh
-exec /usr/bin/cramshell
+exec /usr/bin/clamshell

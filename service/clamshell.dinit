@@ -1,4 +1,4 @@
 type = process
-command = /usr/bin/cramshell
+command = /usr/bin/clamshell
 depends-on = loginready
 restart = true
