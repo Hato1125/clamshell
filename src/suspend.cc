@@ -1,4 +1,3 @@
-#include <bit>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -6,14 +5,20 @@
 #include <unistd.h>
 
 #include "suspend.hh"
+#include "config.hh"
 
 namespace {
+  using namespace clamshell;
+
   constexpr const char* power_state_path = "/sys/power/state";
+  constexpr const char* mem_power_state_path = "/sys/power/mem_sleep";
   constexpr const char* nvidia_suspend_path = "/proc/driver/nvidia/suspend";
   constexpr const char* cgroup_freeze_path = "/sys/fs/cgroup/user.slice/cgroup.freeze";
   constexpr const char* cgroup_proc_path = "/sys/fs/cgroup/system.slice/cgroup.procs";
 
-  struct suspend_caps {
+  config::suspend_mode use_suspend_mode;
+
+  struct sleep_caps {
     unsigned char freeze : 1;
     unsigned char standby : 1;
     unsigned char mem: 1;
@@ -21,39 +26,145 @@ namespace {
     unsigned char _ : 4;
   };
 
-  suspend_caps caps {
+  struct mem_sleep_caps {
+    unsigned char s2idle : 1;
+    unsigned char shallow : 1;
+    unsigned char deep: 1;
+    unsigned char _ : 5;
+  };
+
+  sleep_caps sleep_caps {
     .freeze = 0,
     .standby = 0,
     .mem = 0,
     .disk = 0,
   };
 
-  void write_suspend() noexcept {
-    std::ofstream state(power_state_path);
-    if (state.is_open()) {
-      if (caps.freeze) {
-        state << "freeze";
-      } else if (caps.standby) {
-        state << "standby";
-      } else if (caps.mem) {
-        state << "mem";
-      } else if (caps.disk) {
-        state << "disk";
+  mem_sleep_caps mem_sleep_caps {
+    .s2idle = 0,
+    .shallow = 0,
+    .deep = 0,
+  };
+
+  void get_sleep_cap() noexcept {
+    std::ifstream file(power_state_path);
+
+    if (file.is_open()) {
+      std::string state;
+      std::string part;
+      std::getline(file, state);
+      std::istringstream iss(state);
+
+      while (iss >> part) {
+        if (part == "freeze") {
+          sleep_caps.freeze = 1;
+        } else if (part == "standby") {
+          sleep_caps.standby = 1;
+        } else if (part == "mem") {
+          sleep_caps.mem = 1;
+        } else if (part == "disk") {
+          sleep_caps.disk = 1;
+        }
       }
     }
   }
 
-  void write_nvidia_suspend() noexcept {
-    std::ofstream state(nvidia_suspend_path);
+  void get_mem_sleep_cap() noexcept {
+    std::ifstream file(mem_power_state_path);
+
+    if (file.is_open()) {
+      std::string state;
+      std::string part;
+      std::getline(file, state);
+      std::istringstream iss(state);
+
+      while (iss >> part) {
+        if (!part.empty() && part.front() == '[') {
+          part = part.substr(1, part.size() - 2);
+        }
+
+        if (part == "s2idle") {
+          mem_sleep_caps.s2idle = 1;
+        } else if (part == "shallow") {
+          mem_sleep_caps.shallow = 1;
+        } else if (part == "deep") {
+          mem_sleep_caps.deep = 1;
+        }
+      }
+    }
+  }
+
+  bool is_freeze_available() noexcept {
+    return sleep_caps.freeze;
+  }
+
+  bool is_suspend_to_ram_available() noexcept {
+    return sleep_caps.mem && mem_sleep_caps.deep;
+  }
+
+  bool is_suspend_to_disk_available() noexcept {
+    return sleep_caps.disk;
+  }
+
+  void freeze() noexcept {
+    std::ofstream state(power_state_path);
     if (state.is_open()) {
-      state << "suspend";
+      state << "freeze";
+    }
+  }
+
+  void suspend_to_ram() noexcept {
+    std::ofstream mem(mem_power_state_path);
+    if (mem.is_open()) {
+      mem << "deep";
+    }
+
+    std::ofstream state(power_state_path);
+    if (state.is_open()) {
+      state << "mem";
+    }
+  }
+
+  void suspend_to_disk() noexcept {
+    std::ofstream state(power_state_path);
+    if (state.is_open()) {
+      state << "disk";
+    }
+  }
+
+  void write_nvidia_suspend() noexcept {
+    switch (config::nvidia_method_type) {
+      case config::nvidia_method::official_script:
+        if (config::suspend_mode_type == config::suspend_mode::suspend_to_disk) {
+          std::system("/usr/bin/nvidia-sleep.sh hibernate");
+        } else {
+          std::system("/usr/bin/nvidia-sleep.sh suspend");
+        }
+        break;
+      case config::nvidia_method::direct_proc:
+        std::ofstream state(nvidia_suspend_path);
+        if (state.is_open()) {
+          state << "suspend";
+        }
+        break;
     }
   }
 
   void write_nvidia_resume() noexcept {
-    std::ofstream state(nvidia_suspend_path);
-    if (state.is_open()) {
-      state << "resume";
+    switch (config::nvidia_method_type) {
+      case config::nvidia_method::official_script:
+        if (config::suspend_mode_type == config::suspend_mode::suspend_to_disk) {
+          std::system("/usr/bin/nvidia-sleep.sh thaw");
+        } else {
+          std::system("/usr/bin/nvidia-sleep.sh resume");
+        }
+        break;
+      case config::nvidia_method::direct_proc:
+        std::ofstream state(nvidia_suspend_path);
+        if (state.is_open()) {
+          state << "resume";
+        }
+        break;
     }
   }
 
@@ -79,28 +190,68 @@ namespace {
 
 namespace clamshell {
   bool check_suspend_caps() noexcept {
-    std::ifstream file(power_state_path);
+    get_sleep_cap();
+    get_mem_sleep_cap();
 
-    if (file.is_open()) {
-      std::string state;
-      std::string part;
-      std::getline(file, state);
-      std::istringstream iss(state);
-
-      while (iss >> part) {
-        if (part == "freeze") {
-          caps.freeze = 1;
-        } else if (part == "standby") {
-          caps.standby = 1;
-        } else if (part == "mem") {
-          caps.mem = 1;
-        } else if (part == "disk") {
-          caps.disk = 1;
-        }
+    if (!config::fallback) {
+      switch (config::suspend_mode_type) {
+        case config::suspend_mode::freeze:
+          use_suspend_mode = config::suspend_mode::freeze;
+          return is_freeze_available();
+        case config::suspend_mode::suspend_to_ram:
+          use_suspend_mode = config::suspend_mode::suspend_to_ram;
+          return is_suspend_to_ram_available();
+        case config::suspend_mode::suspend_to_disk:
+          use_suspend_mode = config::suspend_mode::suspend_to_disk;
+          return is_suspend_to_disk_available();
       }
     }
 
-    return std::bit_cast<unsigned char>(caps) != 0;
+    using mode = config::suspend_mode;
+
+    static constexpr mode freeze_fallback[3] {
+      mode::freeze,
+      mode::suspend_to_disk,
+      mode::suspend_to_ram,
+    };
+
+    static constexpr mode ram_fallback[3] {
+      mode::suspend_to_ram,
+      mode::suspend_to_disk,
+      mode::freeze,
+    };
+
+    static constexpr mode disk_fallback[3] {
+      mode::suspend_to_disk,
+      mode::suspend_to_ram,
+      mode::freeze,
+    };
+
+    const mode* order = nullptr;
+
+    switch (config::suspend_mode_type) {
+      case mode::freeze: order = freeze_fallback; break;
+      case mode::suspend_to_ram: order = ram_fallback; break;
+      case mode::suspend_to_disk: order = disk_fallback; break;
+    }
+
+    const auto is_available = [](mode m) -> bool {
+      switch (m) {
+        case mode::freeze: return is_freeze_available();
+        case mode::suspend_to_ram: return is_suspend_to_ram_available();
+        case mode::suspend_to_disk: return is_suspend_to_disk_available();
+      }
+      return false;
+    };
+
+    for (int i = 0; i < 3; ++i) {
+      if (is_available(order[i])) {
+        use_suspend_mode = order[i];
+        return true;
+      }
+    }
+
+    return false;
   }
 
   void suspend() noexcept {
@@ -108,13 +259,19 @@ namespace clamshell {
     write_nvidia_suspend();
 
     if (move_self_to_system_slice() && freeze_user_processes()) {
-      write_suspend();
-    } else {
-      write_nvidia_resume();
+      switch (use_suspend_mode) {
+        case config::suspend_mode::freeze:
+          freeze();
+          break;
+        case config::suspend_mode::suspend_to_ram:
+          suspend_to_ram();
+          break;
+        case config::suspend_mode::suspend_to_disk:
+          suspend_to_disk();
+          break;
+      }
     }
-  }
 
-  void resume() noexcept {
     unfreeze_user_processes();
     write_nvidia_resume();
   }

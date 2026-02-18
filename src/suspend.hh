@@ -4,7 +4,6 @@
 namespace clamshell {
   bool check_suspend_caps() noexcept;
   void suspend() noexcept;
-  void resume() noexcept;
 }
 
 #endif
