@@ -1,6 +1,6 @@
-#include <print>
 #include <thread>
 
+#include "log.hh"
 #include "lid.hh"
 #include "suspend.hh"
 #include "display.hh"
@@ -12,16 +12,18 @@ int main() {
   clamshell::config::load();
 
   if (!clamshell::has_lid()) {
-    std::println("Clamshell is not possible with this device as there is no lid.");
+    CLAMSHELL_FATAL("clamshell is not possible with this device as there is no lid");
     return EXIT_FAILURE;
   }
 
   if (!clamshell::check_suspend_caps()) {
-    std::println("No suspend available for this device.");
+    CLAMSHELL_FATAL("no suspend available for this device");
     return EXIT_FAILURE;
   }
 
   while (true) {
+    CLAMSHELL_INFO("display count: \033[1m{}\033[22m", clamshell::get_display_count());
+    CLAMSHELL_INFO("lid open: \033[1m{}\033[22m", clamshell::is_open_lid());
     if (clamshell::get_display_count() == 1) {
       if (!clamshell::is_open_lid()) {
         // Program execution stops here during suspend, preventing multiple
