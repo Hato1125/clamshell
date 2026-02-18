@@ -4,10 +4,13 @@
 #include "lid.hh"
 #include "suspend.hh"
 #include "display.hh"
+#include "config.hh"
 
 using namespace std::chrono_literals;
 
 int main() {
+  clamshell::config::load();
+
   if (!clamshell::has_lid()) {
     std::println("Clamshell is not possible with this device as there is no lid.");
     return EXIT_FAILURE;

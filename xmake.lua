@@ -1,5 +1,19 @@
 add_rules('mode.debug', 'mode.release')
 
+package('xdgcpp')
+  set_urls('https://github.com/Grumbel/xdgcpp.git')
+  add_deps('cmake')
+
+  on_install(
+    function (package)
+      import('package.tools.cmake').install(package)
+    end
+  )
+package_end()
+
+add_requires('xdgcpp')
+add_requires('toml++')
+
 option('compile_commands')
   set_default(false)
   set_showmenu(true)
@@ -17,3 +31,8 @@ set_languages('c++26')
 target('cramshell')
   set_kind('binary')
   add_files('src/**.cc')
+  add_packages(
+    'xdgcpp',
+    'toml++'
+  )
+  add_defines('TOML_HEADER_ONLY=1')
