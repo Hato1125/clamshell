@@ -1,5 +1,5 @@
-#ifndef _CRAMSHELL_LID_HH
-#define _CRAMSHELL_LID_HH
+#ifndef _CLAMSHELL_LID_HH
+#define _CLAMSHELL_LID_HH
 
 namespace clamshell {
   bool has_lid() noexcept;

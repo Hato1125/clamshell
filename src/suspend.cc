@@ -181,7 +181,7 @@ namespace {
   bool freeze_user_processes() noexcept {
     CLAMSHELL_TRACE("freeze user processes");
     std::ofstream file(cgroup_freeze_path);
-    file << "1";
+    file << '1';
     const bool ok = file.good();
     CLAMSHELL_INFO("freeze user processes: {}", ok ? "ok" : "failed");
     return ok;
@@ -190,7 +190,7 @@ namespace {
   bool unfreeze_user_processes() noexcept {
     CLAMSHELL_TRACE("unfreeze user processes");
     std::ofstream file(cgroup_freeze_path);
-    file << "0";
+    file << '0';
     const bool ok = file.good();
     CLAMSHELL_INFO("unfreeze user processes: {}", ok ? "ok" : "failed");
     return ok;
