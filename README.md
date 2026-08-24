@@ -25,7 +25,13 @@ macOS and systemd-based implementations require AC power as an absolute conditio
 It also does not depend on any init system, so it works in any environment.
 
 ## Installation
-To install, you need `xmake`, `cmake`, `ninja`, and `gcc`.
+To install, you need:
+- `xmake`
+- `cmake`
+- `ninja`
+- `gcc`
+- `g++`
+- Nvidia proprietary drivers
 
 ### For systemd users
 ```sh
@@ -49,6 +55,17 @@ After installation, enable clamshell with the following commands:
 ```sh
 sudo rc-update add clamshell default
 sudo rc-service clamshell start
+```
+
+### For systemd users
+```sh
+chmod +x service/openrc/install.sh
+service/openrc/install.sh
+```
+After installation, enable clamshell with the following commands:
+```sh
+sudo systemctl enable clamshell.service
+sudo systemctl start clamshell.service
 ```
 
 ### Other init systems
