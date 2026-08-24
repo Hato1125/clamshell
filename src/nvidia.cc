@@ -40,6 +40,7 @@ namespace nvidia {
         break;
     }
   }
+
   void resume(config::suspend_mode mode) noexcept {
     switch (config::nvidia_method_type) {
       case config::nvidia_method::official_script:

@@ -1,5 +1,4 @@
 #include <cstdlib>
-#include <print>
 
 #include "def.hh"
 #include "log.hh"
@@ -8,8 +7,8 @@
 #include "config.hh"
 
 int main() {
-  std::println("START CLAMSHELL DAEMON");
-  std::println(
+  CLAMSHELL_INFO("START CLAMSHELL DAEMON");
+  CLAMSHELL_INFO(
     "{} MODE: v{}.{}.{}",
 #ifdef DEBUG
     "DEBUG",
