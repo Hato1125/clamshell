@@ -234,6 +234,6 @@ void suspend() noexcept {
     }
   }
 
-  unfreeze_user_processes();
   nvidia::resume(use_suspend_mode);
+  unfreeze_user_processes();
 }
