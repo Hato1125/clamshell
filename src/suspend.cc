@@ -5,6 +5,7 @@
 
 #include <unistd.h>
 
+#include "utils.hh"
 #include "suspend.hh"
 #include "config.hh"
 #include "nvidia.hh"
@@ -98,61 +99,41 @@ namespace {
 
   void exec_freeze() noexcept {
     CLAMSHELL_TRACE("execute suspend with \033[1mfreeze\033[22m");
-    std::ofstream state(power_state_path);
-    state << "freeze";
-    if (!state.good()) {
-      CLAMSHELL_ERROR("failed to write to \"{}\" for freeze suspend", power_state_path);
-    }
+    utils::write_file(power_state_path, "freeze");
   }
 
   void exec_suspend_to_ram() noexcept {
     CLAMSHELL_TRACE("execute suspend with \033[1msuspend to ram\033[22m");
-    std::ofstream mem(mem_power_state_path);
-    mem << "deep";
-    if (!mem.good()) {
-      CLAMSHELL_ERROR("failed to write to \"{}\" for suspend to RAM", mem_power_state_path);
+
+    if (!utils::write_file(mem_power_state_path, "deep")) {
       return;
     }
 
-    std::ofstream state(power_state_path);
-    state << "mem";
-    if (!state.good()) {
-      CLAMSHELL_ERROR("failed to write to \"{}\" for suspend to RAM", power_state_path);
-    }
+    utils::write_file(power_state_path, "mem");
   }
 
   void exec_suspend_to_disk() noexcept {
     CLAMSHELL_TRACE("execute suspend with \033[1msuspend to disk\033[22m");
-    std::ofstream state(power_state_path);
-    state << "disk";
-    if (!state.good()) {
-      CLAMSHELL_ERROR("failed to write to \"{}\" for suspend to disk", power_state_path);
-    }
+    utils::write_file(power_state_path, "disk");
   }
 
   bool freeze_user_processes() noexcept {
     CLAMSHELL_TRACE("freeze user processes");
-    std::ofstream file(cgroup_freeze_path);
-    file << '1';
-    const bool ok = file.good();
+    const bool ok = utils::write_file(cgroup_freeze_path, "1");
     CLAMSHELL_INFO("freeze user processes: {}", ok ? "ok" : "failed");
     return ok;
   }
 
   bool unfreeze_user_processes() noexcept {
     CLAMSHELL_TRACE("unfreeze user processes");
-    std::ofstream file(cgroup_freeze_path);
-    file << '0';
-    const bool ok = file.good();
+    const bool ok = utils::write_file(cgroup_freeze_path, "0");
     CLAMSHELL_INFO("unfreeze user processes: {}", ok ? "ok" : "failed");
     return ok;
   }
 
   bool move_self_to_system_slice() noexcept {
     CLAMSHELL_TRACE("move self to system slice");
-    std::ofstream file(cgroup_proc_path);
-    file << getpid();
-    const bool ok = file.good();
+    const bool ok = utils::write_file(cgroup_proc_path, std::to_string(getpid()));
     CLAMSHELL_INFO("move self to system slice: {}", ok ? "ok" : "failed");
     return ok;
   }

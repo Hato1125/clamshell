@@ -1,7 +1,7 @@
 #include <cstdlib>
-#include <fstream>
 
 #include "log.hh"
+#include "utils.hh"
 #include "config.hh"
 
 namespace {
@@ -32,11 +32,7 @@ namespace nvidia {
         break;
       case config::nvidia_method::direct_proc:
         CLAMSHELL_TRACE("execute nvidia suspend with \033[1mdirect proc\033[22m");
-        std::ofstream state(suspend_path);
-        state << "suspend";
-        if (!state.good()) {
-          CLAMSHELL_ERROR("failed to write to \"{}\" for nvidia suspend", suspend_path);
-        }
+        utils::write_file(suspend_path, "suspend");
         break;
     }
   }
@@ -58,11 +54,7 @@ namespace nvidia {
         break;
       case config::nvidia_method::direct_proc:
         CLAMSHELL_TRACE("execute nvidia resume with \033[1mdirect proc\033[22m");
-        std::ofstream state(suspend_path);
-        state << "resume";
-        if (!state.good()) {
-          CLAMSHELL_ERROR("failed to write to \"{}\" for nvidia resume", suspend_path);
-        }
+        utils::write_file(suspend_path, "resume");
         break;
     }
   }
