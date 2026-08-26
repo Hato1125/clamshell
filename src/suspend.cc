@@ -20,18 +20,18 @@ namespace {
   config::suspend_mode use_suspend_mode;
 
   struct sleep_caps {
-    unsigned char freeze : 1;
-    unsigned char standby : 1;
-    unsigned char mem: 1;
-    unsigned char disk: 1;
-    unsigned char _ : 4;
+    bool freeze : 1;
+    bool standby : 1;
+    bool mem: 1;
+    bool disk: 1;
+    bool _ : 4;
   };
 
   struct mem_sleep_caps {
-    unsigned char s2idle : 1;
-    unsigned char shallow : 1;
-    unsigned char deep: 1;
-    unsigned char _ : 5;
+    bool s2idle : 1;
+    bool shallow : 1;
+    bool deep: 1;
+    bool _ : 5;
   };
 
   void get_sleep_cap(sleep_caps& caps) noexcept {
@@ -146,18 +146,18 @@ bool check_suspend_caps() noexcept {
   get_sleep_cap(sleep_caps);
   CLAMSHELL_INFO(
     "sleep caps {{\n  freeze = \033[1m{}\033[22m\n  standby = \033[1m{}\033[22m\n  mem = \033[1m{}\033[22m\n  disk = \033[1m{}\033[22m\n}}",
-    sleep_caps.freeze ? "true" : "false",
-    sleep_caps.standby ? "true" : "false",
-    sleep_caps.mem ? "true" : "false",
-    sleep_caps.disk ? "true" : "false"
+    sleep_caps.freeze,
+    sleep_caps.standby,
+    sleep_caps.mem,
+    sleep_caps.disk
   );
 
   get_mem_sleep_cap(mem_caps);
   CLAMSHELL_INFO(
     "mem_sleep_caps {{\n  s2idle = \033[1m{}\033[22m\n  shallow = \033[1m{}\033[22m\n  deep = \033[1m{}\033[22m\n}}",
-    mem_caps.s2idle ? "true" : "false",
-    mem_caps.shallow ? "true" : "false",
-    mem_caps.deep ? "true" : "false"
+    mem_caps.s2idle,
+    mem_caps.shallow,
+    mem_caps.deep
   );
 
   if (!config::fallback) {

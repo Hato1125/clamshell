@@ -14,7 +14,7 @@ namespace detail {
     std::string_view category,
     std::source_location location,
     std::format_string<Args...> fmt,
-    Args&&... args
+    const Args&... args
   ) noexcept {
     std::println(
       stream,
@@ -23,7 +23,7 @@ namespace detail {
       category,
       location.line(),
       location.column(),
-      std::format(fmt, std::forward<Args>(args)...)
+      std::vformat(fmt.get(), std::make_format_args(args...))
     );
     std::fflush(stream);
   }
