@@ -1,0 +1,161 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing v* tag to build and release
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build GNU/Linux (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: aarch64
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+
+      - name: Validate release tag
+        shell: bash
+        run: |
+          case "$RELEASE_TAG" in
+            v*) ;;
+            *)
+              echo "Release tag must start with v: $RELEASE_TAG" >&2
+              exit 1
+              ;;
+          esac
+          git rev-parse --verify "refs/tags/${RELEASE_TAG}^{commit}"
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes gcc-14 g++-14 cmake ninja-build
+
+      - name: Set up xmake
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: latest
+          actions-cache-folder: .xmake-cache
+          actions-cache-key: ${{ runner.os }}-${{ runner.arch }}-xmake
+
+      - name: Build static binary
+        run: |
+          xmake f -m release -y \
+            --cc=gcc-14 \
+            --cxx=g++-14 \
+            --ldflags="-static"
+          xmake -y
+
+      - name: Package release archive
+        shell: bash
+        run: |
+          binary="$(find build/linux -type f -path '*/release/clamshell' -print -quit)"
+          if [[ -z "$binary" ]]; then
+            echo "Built clamshell binary was not found" >&2
+            exit 1
+          fi
+
+          file "$binary"
+          file "$binary" | grep --quiet "statically linked"
+
+          runner_arch="$(uname -m)"
+          if [[ "$runner_arch" != "${{ matrix.arch }}" ]]; then
+            echo "Expected ${{ matrix.arch }}, got $runner_arch" >&2
+            exit 1
+          fi
+
+          package="clamshell-${RELEASE_TAG}-linux-${{ matrix.arch }}"
+          stage="dist/$package"
+          mkdir -p "$stage"
+          install -m 0755 "$binary" "$stage/clamshell"
+          cp -R service "$stage/service"
+          install -m 0644 LICENSE "$stage/LICENSE"
+          tar -C dist -czf "dist/${package}.tar.gz" "$package"
+          (
+            cd dist
+            sha256sum "${package}.tar.gz" > "${package}.tar.gz.sha256"
+          )
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.arch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Download release archives
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Verify archives and create checksum manifest
+        shell: bash
+        run: |
+          for checksum in dist/*.tar.gz.sha256; do
+            (
+              cd dist
+              sha256sum --check "$(basename "$checksum")"
+            )
+          done
+          sort -k2 dist/*.tar.gz.sha256 > dist/SHA256SUMS
+
+      - name: Create or update GitHub release
+        shell: bash
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" \
+              dist/*.tar.gz \
+              dist/SHA256SUMS \
+              --clobber \
+              --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$RELEASE_TAG" \
+              dist/*.tar.gz \
+              dist/SHA256SUMS \
+              --verify-tag \
+              --generate-notes \
+              --title "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY"
+          fi

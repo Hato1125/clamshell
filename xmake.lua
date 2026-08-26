@@ -12,7 +12,7 @@ package('xdgcpp')
 package_end()
 
 add_requires('xdgcpp')
-add_requires('toml++')
+add_requires('toml++', { system = false })
 
 option('compile_commands')
   set_default(false)
