@@ -65,6 +65,7 @@ jobs:
       - name: Build static binary
         run: |
           xmake f -m release -y \
+            --policies=build.optimization.lto \
             --cc=gcc-14 \
             --cxx=g++-14 \
             --ldflags="-static"
