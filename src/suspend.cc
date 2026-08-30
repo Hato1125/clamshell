@@ -187,12 +187,7 @@ void suspend() noexcept {
     return;
   }
 
-  int available = vt::available();
-  if (available == utils::invalid_fd) {
-    return;
-  }
-
-  if (vt::change(available) == utils::invalid_fd) {
+  if (vt::change(vt::parking) == utils::invalid_fd) {
     vt::change(prev);
     return;
   }

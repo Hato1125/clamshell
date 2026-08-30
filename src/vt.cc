@@ -16,18 +16,6 @@ namespace vt {
     return utils::invalid_fd;
   }
 
-  int available() noexcept {
-    if (auto fd = utils::unique_fd(open("/dev/tty0", O_RDWR | O_CLOEXEC)); fd) {
-      int target = utils::invalid_fd;
-
-      if (ioctl(fd, VT_OPENQRY, &target) == 0) {
-        return target;
-      }
-    }
-
-    return utils::invalid_fd;
-  }
-
   int change(int vt) noexcept {
     if (auto fd = utils::unique_fd(open("/dev/tty0", O_RDWR | O_CLOEXEC)); fd) {
       if (ioctl(fd, VT_ACTIVATE, vt) == 0
