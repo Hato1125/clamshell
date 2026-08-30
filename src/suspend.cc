@@ -10,6 +10,7 @@
 #include "config.hh"
 #include "nvidia.hh"
 #include "log.hh"
+#include "vt.hh"
 
 namespace {
   constexpr const char* power_state_path = "/sys/power/state";
@@ -116,27 +117,6 @@ namespace {
     CLAMSHELL_TRACE("execute suspend with \033[1msuspend to disk\033[22m");
     utils::write_file(power_state_path, "disk");
   }
-
-  bool freeze_user_processes() noexcept {
-    CLAMSHELL_TRACE("freeze user processes");
-    const bool ok = utils::write_file(cgroup_freeze_path, "1");
-    CLAMSHELL_INFO("freeze user processes: {}", ok ? "ok" : "failed");
-    return ok;
-  }
-
-  bool unfreeze_user_processes() noexcept {
-    CLAMSHELL_TRACE("unfreeze user processes");
-    const bool ok = utils::write_file(cgroup_freeze_path, "0");
-    CLAMSHELL_INFO("unfreeze user processes: {}", ok ? "ok" : "failed");
-    return ok;
-  }
-
-  bool move_self_to_system_slice() noexcept {
-    CLAMSHELL_TRACE("move self to system slice");
-    const bool ok = utils::write_file(cgroup_proc_path, std::to_string(getpid()));
-    CLAMSHELL_INFO("move self to system slice: {}", ok ? "ok" : "failed");
-    return ok;
-  }
 }
 
 bool check_suspend_caps() noexcept {
@@ -203,18 +183,32 @@ bool check_suspend_caps() noexcept {
 
 void suspend() noexcept {
   sync();
+
+  int prev = vt::current();
+  if (prev == utils::invalid_fd) {
+    return;
+  }
+
+  int available = vt::available();
+  if (available == utils::invalid_fd) {
+    return;
+  }
+
+  if (vt::change(available) == utils::invalid_fd) {
+    vt::change(prev);
+    return;
+  }
+
   nvidia::suspend(use_suspend_mode);
 
-  if (move_self_to_system_slice() && freeze_user_processes()) {
-    switch (use_suspend_mode) {
-      using enum config::suspend_mode;
+  switch (use_suspend_mode) {
+    using enum config::suspend_mode;
 
-      case freeze: exec_freeze(); break;
-      case suspend_to_ram: exec_suspend_to_ram(); break;
-      case suspend_to_disk: exec_suspend_to_disk(); break;
-    }
+    case freeze: exec_freeze(); break;
+    case suspend_to_ram: exec_suspend_to_ram(); break;
+    case suspend_to_disk: exec_suspend_to_disk(); break;
   }
 
   nvidia::resume(use_suspend_mode);
-  unfreeze_user_processes();
+  vt::change(prev);
 }
