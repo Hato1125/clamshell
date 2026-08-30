@@ -15,8 +15,6 @@
 namespace {
   constexpr const char* power_state_path = "/sys/power/state";
   constexpr const char* mem_power_state_path = "/sys/power/mem_sleep";
-  constexpr const char* cgroup_freeze_path = "/sys/fs/cgroup/user.slice/cgroup.freeze";
-  constexpr const char* cgroup_proc_path = "/sys/fs/cgroup/system.slice/cgroup.procs";
 
   config::suspend_mode use_suspend_mode;
 
