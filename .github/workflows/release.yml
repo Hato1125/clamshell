@@ -122,6 +122,12 @@ jobs:
       GH_TOKEN: ${{ github.token }}
 
     steps:
+      - name: Check out release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+
       - name: Download release archives
         uses: actions/download-artifact@v8
         with:
@@ -140,10 +146,39 @@ jobs:
           done
           sort -k2 dist/*.tar.gz.sha256 > dist/SHA256SUMS
 
+      - name: Generate release notes from commits
+        shell: bash
+        run: |
+          current_commit="$(git rev-list -n 1 "$RELEASE_TAG")"
+          previous_tag="$(git describe --tags --match 'v*' --abbrev=0 "${current_commit}^" 2>/dev/null || true)"
+          repository_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+          commit_format="- [\`%h\`](${repository_url}/commit/%H) %s"
+
+          if [[ -n "$previous_tag" ]]; then
+            commit_range="${previous_tag}..${RELEASE_TAG}"
+          else
+            commit_range="$RELEASE_TAG"
+          fi
+
+          {
+            echo "## What's Changed"
+            echo
+            git log "$commit_range" --pretty=format:"$commit_format"
+            echo
+
+            if [[ -n "$previous_tag" ]]; then
+              echo
+              echo "**Full Changelog**: ${repository_url}/compare/${previous_tag}...${RELEASE_TAG}"
+            fi
+          } > dist/RELEASE_NOTES.md
+
       - name: Create or update GitHub release
         shell: bash
         run: |
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" \
+              --notes-file dist/RELEASE_NOTES.md \
+              --repo "$GITHUB_REPOSITORY"
             gh release upload "$RELEASE_TAG" \
               dist/*.tar.gz \
               dist/SHA256SUMS \
@@ -154,7 +189,7 @@ jobs:
               dist/*.tar.gz \
               dist/SHA256SUMS \
               --verify-tag \
-              --generate-notes \
+              --notes-file dist/RELEASE_NOTES.md \
               --title "$RELEASE_TAG" \
               --repo "$GITHUB_REPOSITORY"
           fi
