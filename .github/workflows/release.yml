@@ -57,6 +57,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes gcc-14 g++-14 cmake ninja-build
 
+      - name: Select GCC 14
+        shell: bash
+        run: |
+          toolchain_dir="${RUNNER_TEMP}/gcc-14"
+          mkdir -p "$toolchain_dir"
+          ln -s /usr/bin/gcc-14 "$toolchain_dir/gcc"
+          ln -s /usr/bin/g++-14 "$toolchain_dir/g++"
+          echo "$toolchain_dir" >> "$GITHUB_PATH"
+
       - name: Set up xmake
         uses: xmake-io/github-action-setup-xmake@v1
         with:
@@ -66,8 +75,8 @@ jobs:
         run: |
           xmake f -m release -y \
             --policies=build.optimization.lto \
-            --cc=gcc-14 \
-            --cxx=g++-14 \
+            --cc=gcc \
+            --cxx=g++ \
             --ldflags="-static"
           xmake -y
 
