@@ -4,7 +4,7 @@
 namespace clamshell {
   constexpr int major = 1;
   constexpr int minor = 0;
-  constexpr int patch = 2;
+  constexpr int patch = 3;
 }
 
 #endif
