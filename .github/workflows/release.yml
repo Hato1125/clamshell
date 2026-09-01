@@ -73,10 +73,12 @@ jobs:
 
       - name: Build static binary
         run: |
+          # NOTE: do not pass --cc/--cxx here. Explicit compiler overrides combined
+          # with --policies=build.optimization.lto crash xmake package installs
+          # (nil toolname in _generate_lto_configs, present up to v3.1.x master).
+          # GCC 14 is selected via the PATH shim from the "Select GCC 14" step.
           xmake f -m release -y \
             --policies=build.optimization.lto \
-            --cc=gcc \
-            --cxx=g++ \
             --ldflags="-static"
           xmake -y
 
