@@ -73,12 +73,13 @@ jobs:
 
       - name: Build static binary
         run: |
-          # NOTE: do not pass --cc/--cxx here. Explicit compiler overrides combined
-          # with --policies=build.optimization.lto crash xmake package installs
-          # (nil toolname in _generate_lto_configs, present up to v3.1.x master).
+          # NOTE: do not pass --cc/--cxx or --policies=build.optimization.lto here.
+          # Compiler overrides combined with a global LTO policy crash xmake
+          # package installs (nil toolname in _generate_lto_configs), and a global
+          # LTO policy bakes gcc-version-specific LTO bytecode into dependency
+          # static libs. LTO is enabled per-target in xmake.lua instead, and
           # GCC 14 is selected via the PATH shim from the "Select GCC 14" step.
           xmake f -m release -y \
-            --policies=build.optimization.lto \
             --ldflags="-static"
           xmake -y
 

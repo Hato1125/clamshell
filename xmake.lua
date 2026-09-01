@@ -28,5 +28,10 @@ target('clamshell')
     add_defines("DEBUG")
   elseif is_mode("release") then
     add_defines("RELEASE")
+    -- Target-scoped LTO: keep it out of dependency package builds, where a
+    -- global --policies=build.optimization.lto both crashes xmake package
+    -- installs (nil toolname) and bakes compiler-version-specific LTO
+    -- bytecode into static archives.
+    set_policy("build.optimization.lto", true)
   end
   add_defines('TOML_HEADER_ONLY=1')
